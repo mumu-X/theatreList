@@ -1,6 +1,7 @@
 import { Button, StyleSheet, Text, View, ScrollView, TouchableOpacity, Modal, Dimensions, Platform } from 'react-native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Pdf from 'react-native-pdf';
+import storage from '@react-native-firebase/storage'
 
 export default function HomeScreen({ navigation }) {
 
@@ -13,9 +14,25 @@ export default function HomeScreen({ navigation }) {
     const [ophthalModalVisible, setOphthalModalVisible] = useState(false);
     const [entModalVisible, setEntModalVisible] = useState(false);
 
-    const source = Platform.OS === 'android'
-        ? { uri: 'bundle-assets://Gen surg Roaster.pdf' }
-        : { uri: ':../../../src/Assets/pdfs/Gen surg Roaster.pdf' };
+    const [pdfUrl, setPdfUrl] = useState(''); // 1 Store the PDF URL here
+
+    // Fetch PDF URL when modal is opened
+    useEffect(() => {
+        if (genModalVisible) {
+            storage()
+                .ref('General Surgery/Gen surg Roaster.pdf')
+                .getDownloadURL()
+                .then((url) => {
+                    setPdfUrl(url);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        }
+    }, [genModalVisible]);
+
+    //const pag = storage().ref('gs://rnlist-2d1a5.appspot.com/General Surgery/Gen surg Roaster.pdf').getDownloadURL();
+       
        
     return (
         <View>
@@ -76,10 +93,12 @@ export default function HomeScreen({ navigation }) {
             </View>
 
             <Modal visible={genModalVisible} transparent={true} animationType="slide">
-                <View style={styles.modalView}>
-                    <View style={styles.container}>
+            <View style={styles.modalView}>
+                <View style={styles.container}>
+                    {pdfUrl ? ( // Render the Pdf component only if pdfUrl is available
                         <Pdf
-                            source={source}
+                        trustAllCerts={false}
+                            source={{ uri: pdfUrl, cache: true }} // Provide the resolved URL
                             onLoadComplete={(numberOfPages, filePath) => {
                                 console.log(`Number of pages: ${numberOfPages}`);
                             }}
@@ -94,10 +113,15 @@ export default function HomeScreen({ navigation }) {
                             }}
                             style={styles.pdf}
                         />
-                    </View>
-                    <Button title="Close" onPress={() => setGenModalVisible(false)} />
+                    ) : (
+                        <View>
+                            <Text>Loading PDF...</Text>
+                        </View>
+                    )}
                 </View>
-            </Modal>
+                <Button title="Close" onPress={() => setGenModalVisible(false)} />
+            </View>
+        </Modal>
 
             {/* Additional Modals */}
             <Modal visible={cardioModalVisible} transparent={true} animationType="slide">
