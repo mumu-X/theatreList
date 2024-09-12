@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import LivePtView from '../../components/LivePtView';
 import LiveButton1 from '../../components/LiveButton1';
-import LiveButton2 from '../../components/LiveButton2';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import firestore from '@react-native-firebase/firestore';
 
 type LiveScreenProps = {
   route: {
@@ -18,51 +17,79 @@ export default function Display({ route }: LiveScreenProps) {
   const { selectedDate, selectedSpecialty } = route.params;
   const [patients, setPatients] = useState<any[]>([]);
 
+  // Adding data to Firestore
+  const addPatientsToFirestore = () => {
+    patients.forEach((patient) => {
+      firestore()
+        .collection(selectedSpecialty)
+        .add({
+          name: patient.firstName,
+          procedure: patient.procedure,
+          bednu: patient.bedNu,
+          age: patient.age || 0,
+          date: selectedDate,
+        })
+        .then(() => {
+          console.log(`Patient ${patient.firstName} added to Firestore`);
+        })
+        .catch((error) => {
+          console.error(`Error adding patient ${patient.firstName} to Firestore`, error);
+        });
+    });
+  };
+
   // Convert ISO string back to Date
   const date = selectedDate ? new Date(selectedDate) : null;
 
-  // Fetch data from AsyncStorage
+  // Fetch data from Firestore
   const fetchData = async () => {
-      const dateKey = selectedDate ? selectedDate.split('T')[0] : ''; // Extract date part only
-      const key = `${selectedSpecialty}_${dateKey}`; // Generate key using specialty and date only
+    if (!selectedDate || !selectedSpecialty) {
+      console.log('Missing date or specialty');
+      return;
+    }
 
-      console.log(`Fetching data with key: ${key}`);
-      
-      try {
-          const savedData = await AsyncStorage.getItem(key); // Fetch data from AsyncStorage
-          if (savedData) {
-              console.log(`Fetched data: ${savedData}`);
-              setPatients(JSON.parse(savedData)); // Set fetched data to state
-          } else {
-              console.log(`No data found for key: ${key}`);
-              setPatients([]); // Set an empty array if no data is found
-          }
-      } catch (error) {
-          console.error('Error fetching data', error);
-      }
+    const startOfDay = new Date(selectedDate);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(selectedDate);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    console.log(`Fetching data from Firestore collection: ${selectedSpecialty} with date range: ${startOfDay.toISOString()} - ${endOfDay.toISOString()}`);
+
+    try {
+      const snapshot = await firestore()
+        .collection(selectedSpecialty)
+        .where('date', '>=', startOfDay.toISOString())
+        .where('date', '<=', endOfDay.toISOString())
+        .get();
+
+      const fetchedPatients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      console.log(`Fetched data: ${JSON.stringify(fetchedPatients)}`);
+      setPatients(fetchedPatients);
+    } catch (error) {
+      console.error('Error fetching data from Firestore', error);
+    }
   };
 
-// Delete a patient from the list
-const handleDelete = async (index: number) => {
-  const dateKey = selectedDate ? selectedDate.split('T')[0] : '';
-  const key = `${selectedSpecialty}_${dateKey}`;
-  
-  try {
-    // Filter out the patient to delete
-    const updatedPatients = patients.filter((_, i) => i !== index);
-    setPatients(updatedPatients);
+  // Delete a patient from Firestore
+  const handleDelete = async (id: string) => {
+    try {
+      // Delete the patient document from Firestore
+      await firestore().collection(selectedSpecialty).doc(id).delete();
+      
+      // Remove the patient from the state
+      const updatedPatients = patients.filter(patient => patient.id !== id);
+      setPatients(updatedPatients);
 
-    // Save the updated list to AsyncStorage
-    await AsyncStorage.setItem(key, JSON.stringify(updatedPatients));
-    console.log(`Deleted patient at index ${index}`);
-  } catch (error) {
-    console.error('Error deleting patient', error);
-  }
-};
+      console.log(`Deleted patient with id ${id}`);
+    } catch (error) {
+      console.error('Error deleting patient', error);
+    }
+  };
 
-// fetchData function is called inside useEffect:
+  // Fetch data when the component mounts or selectedDate/selectedSpecialty changes
   useEffect(() => {
-      fetchData(); // Fetch data when the component mounts or selectedDate/selectedSpecialty changes
+    fetchData();
   }, [selectedDate, selectedSpecialty]);
 
   return (
@@ -74,14 +101,14 @@ const handleDelete = async (index: number) => {
 
       <ScrollView style={styles.scrollwindow}>
         {patients.length > 0 ? (
-          patients.map((patient, index) => (
+          patients.map((patient) => (
             <LivePtView
-              key={index}
-              name={patient.firstName} 
+              key={patient.id}
+              name={patient.firstName}
               procedure={patient.procedure}
               bednu={patient.bedNu}
               age={patient.age || 0}
-              onDelete={() => handleDelete(index)} 
+              onDelete={() => handleDelete(patient.id)} 
             />
           ))
         ) : (
@@ -93,7 +120,11 @@ const handleDelete = async (index: number) => {
 
       <View style={styles.Buttons}>
         <LiveButton1 date={date} specialty={selectedSpecialty} />
-        <LiveButton2 />
+        <TouchableOpacity
+          onPress={addPatientsToFirestore}
+        >
+          <Text>Submit</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );

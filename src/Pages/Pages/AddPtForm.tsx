@@ -4,7 +4,7 @@ import { RouteProp, useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../../constant/types';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import firestore from '@react-native-firebase/firestore';
 
 // Validation schema for the form using Yup
 const SignupSchema = Yup.object().shape({
@@ -17,45 +17,33 @@ const SignupSchema = Yup.object().shape({
   bedNu: Yup.number().required('Required'),
 });
 
-// Props type for the AddPtForm component, extracting navigation and params
+// Props type for the AddPtForm component
 type AddPtFormProps = {
   route: RouteProp<RootStackParamList, 'AddPt'>;
 };
 
 // Component for adding patient information
 export default function AddPtForm({ route }: AddPtFormProps) {
-  // Extract selectedDate and selectedSpecialty from route params
   const { selectedDate, selectedSpecialty } = route.params;
-
-  // Convert ISO string back to Date object if selectedDate is not null
   const date = selectedDate ? new Date(selectedDate) : null;
-
-  // Access navigation object using the useNavigation hook
   const navigation = useNavigation();
 
-  // Function to save data to AsyncStorage
+  // Function to save data to Firestore
   const saveData = async (newData: any) => {
-    // Type guard to ensure selectedDate is a string before calling split
-    const dateKey = selectedDate ? new Date(selectedDate).toISOString().split('T')[0] : '';
-    
-    // Generate a key using the selected specialty and the date part
-    const key = `${selectedSpecialty}_${dateKey}`;
-    console.log(`Saving data with key: ${key}`);
-    
+    // Create a new object with fields from newData and include selectedDate
+    const dataToSave = {
+      ...newData,
+      date: selectedDate,
+    };
+
+    // Generate a collection name using the selected specialty
+    const collectionName = `${selectedSpecialty}`;
+    console.log(`Saving data to Firestore collection: ${collectionName}`);
+
     try {
-      // Fetch existing data from AsyncStorage using the generated key
-      let existingData = await AsyncStorage.getItem(key);
+      // Add new data to Firestore collection
+      await firestore().collection(collectionName).add(dataToSave);
 
-      // If data exists, parse it, otherwise use an empty array
-      existingData = existingData ? JSON.parse(existingData) : [];
-
-      // Ensure existingData is an array
-      const updatedData = Array.isArray(existingData) ? [...existingData, newData] : [newData];
-
-      // Save the updated data back to AsyncStorage
-      await AsyncStorage.setItem(key, JSON.stringify(updatedData));
-      console.log(`Data to save: ${JSON.stringify(updatedData)}`);
-      
       // Show a success alert and navigate back to the previous screen
       Alert.alert('Data saved successfully', '', [
         {
@@ -65,8 +53,8 @@ export default function AddPtForm({ route }: AddPtFormProps) {
       ]);
     } catch (error) {
       // Handle any errors during the save process
-      console.error('Error saving data', error);
-      Alert.alert('Failed to save the data to the storage');
+      console.error('Error saving data to Firestore', error);
+      Alert.alert('Failed to save the data to Firestore');
     }
   };
 
@@ -84,8 +72,8 @@ export default function AddPtForm({ route }: AddPtFormProps) {
       }}
       validationSchema={SignupSchema}
       onSubmit={(values, { resetForm }) => {
-        saveData(values);
-        resetForm();
+        saveData(values); // Save data to Firestore
+        resetForm(); // Reset the form after successful submission
       }}
     >
       {({ values, errors, touched, handleChange, setFieldTouched, isValid, handleSubmit }) => (

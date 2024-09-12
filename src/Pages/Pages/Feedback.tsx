@@ -1,8 +1,10 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, Button, Alert } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import AnaeRender from '../../components/AnaeRender';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import SubmitFeedback from '../../components/SubmitFeedback';
+import firestore from '@react-native-firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useIsFocused } from '@react-navigation/native';
 
 type LiveScreenProps = {
   route: {
@@ -16,43 +18,66 @@ type LiveScreenProps = {
 export default function Feedback({ route }: LiveScreenProps) {
   const { selectedDate, selectedSpecialty } = route.params;
   const [patients, setPatients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [previousPatients, setPreviousPatients] = useState<any[]>([]);
+  const isFocused = useIsFocused(); // Hook to determine if the screen is focused
 
+  // Convert ISO string back to Date
   const date = selectedDate ? new Date(selectedDate) : null;
 
-  const fetchData = async () => {
-    const dateKey = selectedDate ? selectedDate.split('T')[0] : '';
-    const key = `${selectedSpecialty}_${dateKey}`;
+  const fetchPatientsFromFirestore = async () => {
+    setLoading(true);
+    if (!selectedDate || !selectedSpecialty) {
+      console.log('Missing date or specialty');
+      setLoading(false);
+      return;
+    }
+
+    const startOfDay = new Date(selectedDate);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(selectedDate);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    console.log(`Fetching data from Firestore collection: ${selectedSpecialty} with date range: ${startOfDay.toISOString()} - ${endOfDay.toISOString()}`);
 
     try {
-      console.log(`Fetching data with key: ${key}`);
-      const savedData = await AsyncStorage.getItem(key);
-      if (savedData) {
-        console.log(`Fetched data: ${savedData}`);
-        setPatients(JSON.parse(savedData));
-      } else {
-        console.log(`No data found for key: ${key}`);
-        setPatients([]);
-      }
+      const querySnapshot = await firestore()
+        .collection(selectedSpecialty)
+        .where('date', '>=', startOfDay.toISOString())
+        .where('date', '<=', endOfDay.toISOString())
+        .get();
+
+      const patientData: any[] = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      console.log(`Fetched data: ${JSON.stringify(patientData)}`);
+      setPreviousPatients(patients); // Save previous state
+      setPatients(patientData);
     } catch (error) {
-      console.error('Error fetching data', error);
+      console.error('Error fetching patients from Firestore: ', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const updatePatient = async (index: number, updates: any) => {
-    const dateKey = selectedDate ? selectedDate.split('T')[0] : '';
-    const key = `${selectedSpecialty}_${dateKey}`;
+    const updatedPatients = [...patients];
+    const patientId = updatedPatients[index].id;
 
     try {
-      const updatedPatients = [...patients];
+      // Update patient locally
       updatedPatients[index] = { ...updatedPatients[index], ...updates };
       setPatients(updatedPatients);
 
-      console.log(`Updated patients state: ${JSON.stringify(updatedPatients)}`);
+      // Update patient in Firestore
+      await firestore()
+        .collection(selectedSpecialty)
+        .doc(patientId)
+        .update(updates);
 
-      await AsyncStorage.setItem(key, JSON.stringify(updatedPatients));
       console.log(`Patient at index ${index} updated.`);
     } catch (error) {
-      console.error('Error updating patient', error);
+      console.error('Error updating patient in Firestore: ', error);
     }
   };
 
@@ -65,36 +90,77 @@ export default function Feedback({ route }: LiveScreenProps) {
   };
 
   const handleToggleChange = (index: number, value: boolean) => {
-    // Update the patient status based on toggle value
     if (value) {
-      // Switching to Done
       updatePatient(index, { isPatientDone: true, isPatientReady: true });
     } else {
-      // Switching to Not Yet Done
       updatePatient(index, { isPatientDone: false, isPatientReady: false });
     }
   };
 
   const handleSubmit = async () => {
-    const dateKey = selectedDate ? selectedDate.split('T')[0] : '';
-    const key = `${selectedSpecialty}_${dateKey}`;
-
     try {
+      // Process patient data before submitting
       const updatedPatients = patients.map(patient => ({
         ...patient,
         isPatientDone: patient.isPatientDone ?? false,
       }));
 
-      await AsyncStorage.setItem(key, JSON.stringify(updatedPatients));
+      if (notificationsEnabled) {
+        // Check for added or removed patients
+        const addedPatients = updatedPatients.filter(patient => !previousPatients.some(p => p.id === patient.id));
+        const removedPatients = previousPatients.filter(patient => !updatedPatients.some(p => p.id === patient.id));
+
+        if (addedPatients.length > 0) {
+          console.log('Patients added:', addedPatients);
+          Alert.alert('Notification', 'Patients added: ' + JSON.stringify(addedPatients));
+        }
+        if (removedPatients.length > 0) {
+          console.log('Patients removed:', removedPatients);
+          Alert.alert('Notification', 'Patients removed: ' + JSON.stringify(removedPatients));
+        }
+      }
+
+      // Update the previous patients list
+      setPreviousPatients(updatedPatients);
+
       console.log('Patient data submitted and updated.');
     } catch (error) {
       console.error('Error submitting patient data', error);
     }
   };
 
+  const loadNotificationsEnabledState = async () => {
+    try {
+      const value = await AsyncStorage.getItem('notificationsEnabled');
+      if (value !== null) {
+        setNotificationsEnabled(JSON.parse(value));
+      }
+    } catch (error) {
+      console.error('Error loading notifications state', error);
+    }
+  };
+
+  const saveNotificationsEnabledState = async (value: boolean) => {
+    try {
+      await AsyncStorage.setItem('notificationsEnabled', JSON.stringify(value));
+    } catch (error) {
+      console.error('Error saving notifications state', error);
+    }
+  };
+
+  const toggleNotifications = () => {
+    const newState = !notificationsEnabled;
+    setNotificationsEnabled(newState);
+    saveNotificationsEnabledState(newState);
+    console.log('Notifications Enabled:', newState);
+  };
+
   useEffect(() => {
-    fetchData();
-  }, [selectedDate, selectedSpecialty]);
+    if (isFocused) {
+      fetchPatientsFromFirestore();
+      loadNotificationsEnabledState(); // Load the persisted state
+    }
+  }, [isFocused, selectedDate, selectedSpecialty]);
 
   return (
     <View>
@@ -104,14 +170,16 @@ export default function Feedback({ route }: LiveScreenProps) {
       </View>
 
       <ScrollView style={styles.scrollwindow}>
-        {patients.length > 0 ? (
+        {loading ? (
+          <Text>Loading patients...</Text>
+        ) : patients.length > 0 ? (
           patients.map((patient, index) => (
             <AnaeRender
-              key={index}
+              key={patient.id}
               name={patient.firstName}
               surName={patient.surName}
               procedure={patient.procedure}
-              bednu={patient.bedNu}
+              bednu={patient.bednu}
               age={patient.age || 0}
               NotReady={() => handleNotReady(index)}
               Ready={() => handleReady(index)}
@@ -128,6 +196,11 @@ export default function Feedback({ route }: LiveScreenProps) {
       </ScrollView>
 
       <SubmitFeedback onSubmit={handleSubmit} />
+
+      <Button
+        title={notificationsEnabled ? 'Disable Notifications' : 'Enable Notifications'}
+        onPress={toggleNotifications}
+      />
     </View>
   );
 }

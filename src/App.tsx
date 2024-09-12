@@ -13,6 +13,7 @@ import AddPtForm from './Pages/Pages/AddPtForm';
 import Check from './Pages/Pages/Check';
 import UpdateList from './Pages/Pages/UpdateList';
 import Feedback from './Pages/Pages/Feedback';
+import SignUpScreen from './Pages/Pages/SignUpScreen';
 
 
 
@@ -25,7 +26,8 @@ const Stack = createNativeStackNavigator<RootStackParamList>(); // stack navigat
 function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName='Home'>
+      <Stack.Navigator initialRouteName='Signup'>
+        <Stack.Screen name="Signup" component={SignUpScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Selection" component={SelectionScreen} />
         <Stack.Screen name="AddPt" component={AddPtForm}/>
