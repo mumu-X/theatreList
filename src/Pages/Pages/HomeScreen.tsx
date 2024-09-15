@@ -2,8 +2,15 @@ import { Button, StyleSheet, Text, View, ScrollView, TouchableOpacity, Modal, Di
 import React, { useEffect, useState } from 'react';
 import Pdf from 'react-native-pdf';
 import storage from '@react-native-firebase/storage'
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../../constant/types'
 
-export default function HomeScreen({ navigation }) {
+type homescreen = StackNavigationProp<RootStackParamList, 'Home'>;
+
+export default function HomeScreen({}) {
+
+    const navigation = useNavigation<homescreen>();
 
 
     
@@ -31,8 +38,7 @@ export default function HomeScreen({ navigation }) {
         }
     }, [genModalVisible]);
 
-    //const pag = storage().ref('gs://rnlist-2d1a5.appspot.com/General Surgery/Gen surg Roaster.pdf').getDownloadURL();
-       
+    
        
     return (
         <View>

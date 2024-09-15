@@ -185,7 +185,7 @@ export default function AddPtForm({ route }: AddPtFormProps) {
   );
 }
 
-// Styles for the component
+
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,

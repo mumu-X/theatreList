@@ -5,7 +5,7 @@ import { string } from 'yup';
 
 
 interface CustomButtonProps{
-    onPress: ((event: GestureResponderEvent) => void) | null | undefined,
+    onPress: (() => void) | ((event: GestureResponderEvent) => void) | null | undefined,
     text: string,
     type: any,
     bgColor: string,
@@ -45,6 +45,11 @@ const styles = StyleSheet.create({
     },
     container_TERTIARY:{},
 
+    container_SECONDARY:{
+        borderColor: '#3871f3',
+        borderWidth: 2,
+    },
+
 
     text:{
         fontWeight:'bold',
@@ -53,7 +58,11 @@ const styles = StyleSheet.create({
 
     text_TERTIARY:{
         color:'gray'
-    }
+    },
+
+    text_SECONDARY:{
+        color:'#3871f3'
+    },
 })
 
 export default CustomButton
