@@ -1,4 +1,4 @@
-import { View, Text, Image, StyleSheet, useWindowDimensions, ScrollView } from 'react-native';
+import { View, Text, Image, StyleSheet, useWindowDimensions, ScrollView, Alert } from 'react-native';
 import React, { useState } from 'react';
 import ImagePath from '../../../constant/ImagePath';
 import CustomInput from '../../../components/LoginComponents/CustomInput';
@@ -6,6 +6,8 @@ import CustomButton from '../../../components/LoginComponents/CustomButton';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../constant/types'
+import auth from '@react-native-firebase/auth';
+
 
 type Signup = StackNavigationProp<RootStackParamList, 'Signup'>;
 
@@ -14,13 +16,15 @@ const SignUpScreen = () => {
     const [username,setusername]=useState('');
     const [password,setpassword]=useState('');
 
-    const onSignInPressed = ()=> {
-        console.warn('Sign in')
-
-         // validate User
-
-         navigation.navigate('Home')
-    }
+    // Modify onSignInPressed to wait for authentication
+    const onSignInPressed = async () => {
+        console.warn('Signing in...');
+        const success = await SigningUserIn();
+        
+        if (success) {
+            navigation.navigate('Home');  // Only navigate if sign-in is successful
+        }
+    };
     const onForgotPasswordPressed = ()=> {
         console.warn('onForgotPasswordPressed')
         navigation.navigate('ForgotPasswordSreen')
@@ -35,13 +39,51 @@ const SignUpScreen = () => {
         console.warn('onSignInAnonymouslyPressed')
     }
     const onSignUpPressed = ()=> {
-        console.warn('onSignUpPressed')
-        navigation.navigate('CreateAcc')
+        console.warn('onSignUpPressed');
+        navigation.navigate('CreateAcc');
     }
 
     const {height} = useWindowDimensions();
     const navigation = useNavigation<Signup>();
 
+
+   // Signing in the user
+   const SigningUserIn = async () => {
+    try {
+        await auth().signInWithEmailAndPassword(username, password);
+        console.log('User signed in successfully!');
+        return true;  // Return true if successful
+    } catch (error) {
+        // Handle errors
+        if (error instanceof Error) {
+            const errorCode = (error as any).code;
+            const errorMessage = error.message;
+
+            console.error('Error code:', errorCode);
+            console.error('Error message:', errorMessage);
+
+            // Check for specific error codes and show alerts accordingly
+            switch (errorCode) {
+                case 'auth/invalid-email':
+                    Alert.alert('Error', 'The email address is invalid.');
+                    break;
+                case 'auth/user-not-found':
+                    Alert.alert('Error', 'User not found.');
+                    break;
+                case 'auth/wrong-password':
+                    Alert.alert('Error', 'The password is incorrect.');
+                    break;
+                case 'auth/invalid-credential':
+                    Alert.alert('Error', 'The supplied credentials are invalid.');
+                    break;
+                default:
+                    Alert.alert('Error', 'An unknown error occurred.');
+                    break;
+            }
+        }
+        return false;  // Return false if authentication fails
+    }
+};
 
   return (
    <ScrollView>

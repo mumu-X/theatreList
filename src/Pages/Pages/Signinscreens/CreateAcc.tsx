@@ -12,6 +12,7 @@ import { RootStackParamList } from '../../../constant/types';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
 
 // Define the navigation prop type
 type createaccscreen = StackNavigationProp<RootStackParamList, 'CreateAcc'>
@@ -31,13 +32,57 @@ const SignupSchema = Yup.object().shape({
   department: Yup.string().required('Department is required'),
 });
 
+
+
+
+
 const CreateAcc = () => {
   const navigation = useNavigation<createaccscreen>();
 
-  const onRegisterPressed = (values: any) => {
+  const createUser = async (values: any) => {
+    try {
+      await auth().createUserWithEmailAndPassword(values.email, values.password);
+      console.log('User account created & signed in!');
+      saveData(values); // Save data to Firestore
+      console.warn('Registered', values);
+      navigation.navigate('ConfirmEmailScreen');
+    } catch (error) {
+      // Add more detailed error handling
+      if (error instanceof Error) {
+        const errorCode = (error as any).code; // Use 'any' to bypass TypeScript check
+        const errorMessage = error.message;
+  
+        // Log the error for debugging
+        console.error('Error code:', errorCode);
+        console.error('Error message:', errorMessage);
+  
+        // Check for specific error codes and show alerts accordingly
+        switch (errorCode) {
+          case 'auth/email-already-in-use':
+            Alert.alert('Error', 'That email address is already in use.');
+            break;
+          case 'auth/invalid-email':
+            Alert.alert('Error', 'That email address is invalid.');
+            break;
+          case 'auth/weak-password':
+            Alert.alert('Error', 'The password is too weak.');
+            break;
+          default:
+            Alert.alert('Error', 'An unknown error occurred.');
+            break;
+        }
+      }
+    }
+  };
+  
+
+  const onRegisterPressed = async (values: any) => {
     console.warn('Registering', values);
-    saveData(values); // Save data to Firestore
-    navigation.navigate('ConfirmEmailScreen');
+    try {
+      await createUser(values); // **Create user now**
+    } catch (error) {
+      console.error('Error during registration:', error);
+    }
   };
 
   const onTermsofuse = () => {

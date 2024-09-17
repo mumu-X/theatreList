@@ -5,6 +5,7 @@ import storage from '@react-native-firebase/storage'
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../constant/types'
+import auth from '@react-native-firebase/auth';
 
 type homescreen = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -20,6 +21,7 @@ export default function HomeScreen({}) {
     const [maxilloModalVisible, setMaxilloModalVisible] = useState(false);
     const [ophthalModalVisible, setOphthalModalVisible] = useState(false);
     const [entModalVisible, setEntModalVisible] = useState(false);
+    const [userName, setUserName] = useState<string | null>('');  // State to store the user's name
 
     const [pdfUrl, setPdfUrl] = useState(''); // 1 Store the PDF URL here
 
@@ -38,12 +40,25 @@ export default function HomeScreen({}) {
         }
     }, [genModalVisible]);
 
+
+    // Fetch the user's name or email from Firebase Auth
+    useEffect(() => {
+        const currentUser = auth().currentUser;
+        if (currentUser) {
+            // Use displayName if available, else fallback to email
+            const name = currentUser.displayName || currentUser.email;
+            setUserName(name);
+        }
+    }, []);
+
     
        
     return (
         <View>
             <View style={styles.Heading}>
-                <Text style={styles.Headingtext}>Welcome Dr. Rutsate</Text>
+                <Text style={styles.Headingtext}>
+                Welcome {userName ? `Dr./Ms. ${userName}` : 'Guest'}
+                </Text>
             </View>
 
             <View>
