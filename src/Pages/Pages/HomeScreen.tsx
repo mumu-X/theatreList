@@ -57,7 +57,7 @@ export default function HomeScreen({}) {
         <View>
             <View style={styles.Heading}>
                 <Text style={styles.Headingtext}>
-                Welcome {userName ? `Dr./Ms. ${userName}` : 'Guest'}
+                Welcome {userName ? `${userName}` : 'Guest'}
                 </Text>
             </View>
 

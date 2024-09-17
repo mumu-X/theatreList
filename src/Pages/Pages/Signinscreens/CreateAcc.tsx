@@ -41,12 +41,29 @@ const CreateAcc = () => {
 
   const createUser = async (values: any) => {
     try {
-      await auth().createUserWithEmailAndPassword(values.email, values.password);
+      // Create the user
+    const userCredential = await auth().createUserWithEmailAndPassword(values.email, values.password);
+    const user = userCredential.user;
+
+
       console.log('User account created & signed in!');
-      saveData(values); // Save data to Firestore
+
+      // Update the user's display name
+    await user.updateProfile({
+      displayName: `${values.title} ${values.lastname}`,
+    });
+    console.log('User account created with display name:', user.displayName);
+
+
+    // Now save their role (department) via custom claims, which needs to be done server-side
+
+    // Optionally, save user data to Firestore
+    await saveData(values);
       console.warn('Registered', values);
       navigation.navigate('ConfirmEmailScreen');
-    } catch (error) {
+    } 
+    
+    catch (error) {
       // Add more detailed error handling
       if (error instanceof Error) {
         const errorCode = (error as any).code; // Use 'any' to bypass TypeScript check
