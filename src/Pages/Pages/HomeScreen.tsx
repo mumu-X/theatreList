@@ -1,8 +1,17 @@
 import { Button, StyleSheet, Text, View, ScrollView, TouchableOpacity, Modal, Dimensions, Platform } from 'react-native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Pdf from 'react-native-pdf';
+import storage from '@react-native-firebase/storage'
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../../constant/types'
+import auth from '@react-native-firebase/auth';
 
-export default function HomeScreen({ navigation }) {
+type homescreen = StackNavigationProp<RootStackParamList, 'Home'>;
+
+export default function HomeScreen({}) {
+
+    const navigation = useNavigation<homescreen>();
 
 
     
@@ -12,15 +21,44 @@ export default function HomeScreen({ navigation }) {
     const [maxilloModalVisible, setMaxilloModalVisible] = useState(false);
     const [ophthalModalVisible, setOphthalModalVisible] = useState(false);
     const [entModalVisible, setEntModalVisible] = useState(false);
+    const [userName, setUserName] = useState<string | null>('');  // State to store the user's name
 
-    const source = Platform.OS === 'android'
-        ? { uri: 'bundle-assets://Gen surg Roaster.pdf' }
-        : { uri: ':../../../src/Assets/pdfs/Gen surg Roaster.pdf' };
+    const [pdfUrl, setPdfUrl] = useState(''); // 1 Store the PDF URL here
+
+    // Fetch PDF URL when modal is opened
+    useEffect(() => {
+        if (genModalVisible) {
+            storage()
+                .ref('General Surgery/Gen surg Roaster.pdf')
+                .getDownloadURL()
+                .then((url) => {
+                    setPdfUrl(url);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        }
+    }, [genModalVisible]);
+
+
+    // Fetch the user's name or email from Firebase Auth
+    useEffect(() => {
+        const currentUser = auth().currentUser;
+        if (currentUser) {
+            // Use displayName if available, else fallback to email
+            const name = currentUser.displayName || currentUser.email;
+            setUserName(name);
+        }
+    }, []);
+
+    
        
     return (
         <View>
             <View style={styles.Heading}>
-                <Text style={styles.Headingtext}>Welcome Dr. Rutsate</Text>
+                <Text style={styles.Headingtext}>
+                Welcome {userName ? `${userName}` : 'Guest'}
+                </Text>
             </View>
 
             <View>
@@ -76,10 +114,12 @@ export default function HomeScreen({ navigation }) {
             </View>
 
             <Modal visible={genModalVisible} transparent={true} animationType="slide">
-                <View style={styles.modalView}>
-                    <View style={styles.container}>
+            <View style={styles.modalView}>
+                <View style={styles.container}>
+                    {pdfUrl ? ( // Render the Pdf component only if pdfUrl is available
                         <Pdf
-                            source={source}
+                        trustAllCerts={false}
+                            source={{ uri: pdfUrl, cache: true }} // Provide the resolved URL
                             onLoadComplete={(numberOfPages, filePath) => {
                                 console.log(`Number of pages: ${numberOfPages}`);
                             }}
@@ -94,10 +134,15 @@ export default function HomeScreen({ navigation }) {
                             }}
                             style={styles.pdf}
                         />
-                    </View>
-                    <Button title="Close" onPress={() => setGenModalVisible(false)} />
+                    ) : (
+                        <View>
+                            <Text>Loading PDF...</Text>
+                        </View>
+                    )}
                 </View>
-            </Modal>
+                <Button title="Close" onPress={() => setGenModalVisible(false)} />
+            </View>
+        </Modal>
 
             {/* Additional Modals */}
             <Modal visible={cardioModalVisible} transparent={true} animationType="slide">
