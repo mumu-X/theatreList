@@ -17,6 +17,7 @@ export default function Display({ route }: LiveScreenProps) {
   const { selectedDate, selectedSpecialty } = route.params;
   const [patients, setPatients] = useState<any[]>([]);
 
+  /*
   // Adding data to Firestore
   const addPatientsToFirestore = () => {
     patients.forEach((patient) => {
@@ -37,6 +38,7 @@ export default function Display({ route }: LiveScreenProps) {
         });
     });
   };
+  */
 
   // Convert ISO string back to Date
   const date = selectedDate ? new Date(selectedDate) : null;
@@ -120,11 +122,6 @@ export default function Display({ route }: LiveScreenProps) {
 
       <View style={styles.Buttons}>
         <LiveButton1 date={date} specialty={selectedSpecialty} />
-        <TouchableOpacity
-          onPress={addPatientsToFirestore}
-        >
-          <Text>Submit</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
