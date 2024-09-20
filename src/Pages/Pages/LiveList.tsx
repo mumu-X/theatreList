@@ -13,6 +13,8 @@ type LiveScreenProps = {
   };
 };
 
+
+
 export default function Display({ route }: LiveScreenProps) {
   const { selectedDate, selectedSpecialty } = route.params;
   const [patients, setPatients] = useState<any[]>([]);
@@ -42,6 +44,7 @@ export default function Display({ route }: LiveScreenProps) {
 
   // Convert ISO string back to Date
   const date = selectedDate ? new Date(selectedDate) : null;
+
 
   // Fetch data from Firestore
   const fetchData = async () => {
@@ -94,6 +97,25 @@ export default function Display({ route }: LiveScreenProps) {
     fetchData();
   }, [selectedDate, selectedSpecialty]);
 
+  // getting patient status to put into Readystatus
+  const evaluatePatientStatus = (patient: any): string => {
+
+    if (patient.isPatientReady === true && patient.isPatientDone === true) {
+      return 'Done';
+    }
+    
+    if (patient.isPatientReady === true && patient.isPatientDone === false) {
+      return 'PtReady';
+    }
+
+    if (patient.isPatientReady === false && (patient.isPatientDone === false || patient.isPatientDone === undefined)) {
+      return 'PtNotReady';
+    }
+    
+    
+    return '';
+  };
+
   return (
     <View>
       <View>
@@ -103,17 +125,23 @@ export default function Display({ route }: LiveScreenProps) {
 
       <ScrollView style={styles.scrollwindow}>
         {patients.length > 0 ? (
-          patients.map((patient) => (
+         patients.map((patient) => {
+          const status = evaluatePatientStatus(patient); // Evaluate the patient's status
+          console.log(`Patient ${patient.firstName} status: ${status}`); // Log the status
+          
+          return (
             <LivePtView
               key={patient.id}
               name={patient.firstName}
               procedure={patient.procedure}
               bednu={patient.bedNu}
               age={patient.age || 0}
-              onDelete={() => handleDelete(patient.id)} 
+              onDelete={() => handleDelete(patient.id)}
+              Readystatus={status} // Pass the evaluated status to the component
             />
-          ))
-        ) : (
+          );
+        })
+      ): (
          <View style={styles.emptyList}>
            <Text>No patients found for this specialty and date.</Text>
          </View>

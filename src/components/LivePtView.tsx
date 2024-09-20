@@ -6,15 +6,18 @@ type PtProps = {
     procedure: string;
     bednu: string;
     age: number;
-    onDelete: () => void;  
+    onDelete: () => void;
+    Readystatus: string;
   };
 
 
 
-export default function LivePtView({name, procedure, bednu, age, onDelete}:PtProps) {
+export default function LivePtView({name, procedure, bednu, age, onDelete,  Readystatus='Default'}:PtProps) {
   return (
     <View style={styles.V}>
-        <TouchableOpacity style={styles.deleteButton} onPress={onDelete}>
+        <TouchableOpacity style={[styles.deleteButton,
+            styles[`deleteButton_${Readystatus}`]]} 
+            onPress={onDelete}>
           <Text>X</Text>
         </TouchableOpacity>
       <View style={styles.V0}>
@@ -74,16 +77,36 @@ const styles = StyleSheet.create({
         width: '50%',
         
     },
+
     V4Text:{
         textAlign:'left'
     },
 
-    deleteButton: {
+    
+
+    deleteButton:
+      {
         position: 'absolute',
         top: 3,
         left: 23, 
-        backgroundColor: '#FF0000',
+        //backgroundColor: '#FFFFFF',
         borderRadius: 15,
         padding: 5,
+      },
+
+    deleteButton_Default: {
+        backgroundColor: '#FFFFFF',
+      },
+
+    deleteButton_PtNotReady:
+      {
+    backgroundColor: '#E71C23',
+      },
+
+    deleteButton_PtReady: {
+        backgroundColor: '#019031',
+      },
+    deleteButton_Done: {
+        backgroundColor: '#FFF222',
       },
 })
